@@ -16,7 +16,7 @@
 VENDOR_BLOBS ?= vendor/coolpad/CP8298_I00/CP8298_I00-vendor.mk
 $(call inherit-product-if-exists, $(VENDOR_BLOBS))
 
-MTK_PROJECT_CONFIG ?= device/coolpad/CP8298_I00/ProjectConfig.mk
+MTK_PROJECT_CONFIG ?= device/lge/me1ds/ProjectConfig.mk
 include $(MTK_PROJECT_CONFIG)
 
 # Charger and USB
@@ -31,14 +31,11 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/rootdir/init.target.rc:root/init.target.rc \
     $(LOCAL_PATH)/rootdir/init.trustonic.rc:root/init.trustonic.rc \
     $(LOCAL_PATH)/rootdir/init.volte.rc:root/init.volte.rc \
-    $(LOCAL_PATH)/rootdir/fstab.CP8298_I00:root/fstab.CP8298_I00
+    $(LOCAL_PATH)/rootdir/fstab.me1ds:root/fstab.me1ds
 
 # Permissions
 PRODUCT_COPY_FILES += \
-    frameworks/native/data/etc/android.hardware.fingerprint.xml:system/etc/permissions/android.hardware.fingerprint.xml \
     frameworks/native/data/etc/android.hardware.sensor.accelerometer.xml:system/etc/permissions/android.hardware.sensor.accelerometer.xml \
-    frameworks/native/data/etc/android.hardware.sensor.light.xml:system/etc/permissions/android.hardware.sensor.light.xml \
-    frameworks/native/data/etc/android.hardware.sensor.proximity.xml:system/etc/permissions/android.hardware.sensor.proximity.xml \
     $(LOCAL_PATH)/configs/handheld_core_hardware.xml:system/etc/permissions/handheld_core_hardware.xml
 
 # Audio
@@ -48,11 +45,6 @@ PRODUCT_COPY_FILES += \
 # Camera
 PRODUCT_PACKAGES += \
     camera.mt6735
-
-# Fingerprint
-PRODUCT_PACKAGES += \
-    android.hardware.biometrics.fingerprint@2.1-service \
-    fingerprint.mt6735
 
 # Keylayouts
 PRODUCT_COPY_FILES += \
@@ -80,12 +72,12 @@ PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
 endif
 
 # Screen density
-PRODUCT_AAPT_CONFIG := normal hdpi xhdpi
-PRODUCT_AAPT_PREF_CONFIG := xhdpi
+PRODUCT_AAPT_CONFIG := normal hdpi
+PRODUCT_AAPT_PREF_CONFIG := hdpi
 
 # Boot animation
-TARGET_SCREEN_HEIGHT := 1280
-TARGET_SCREEN_WIDTH := 720
+TARGET_SCREEN_HEIGHT := 854
+TARGET_SCREEN_WIDTH := 480
 
 # GPS
 PRODUCT_PACKAGES += \

@@ -15,21 +15,21 @@
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 
-$(call inherit-product, device/coolpad/CP8298_I00/device.mk)
+$(call inherit-product, device/lge/me1ds/device.mk)
 
 $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
 
 
-PRODUCT_NAME := lineage_CP8298_I00
-BOARD_VENDOR := coolpad
-PRODUCT_DEVICE := CP8298_I00
+PRODUCT_NAME := lineage_me1ds
+BOARD_VENDOR := lge
+PRODUCT_DEVICE := me1ds
 
-PRODUCT_GMS_CLIENTID_BASE := android-coolpad
+PRODUCT_GMS_CLIENTID_BASE := android-lge
 
-PRODUCT_MANUFACTURER := Coolpad
-PRODUCT_MODEL := CP8298_I00
+PRODUCT_MANUFACTURER := LGE
+PRODUCT_MODEL := LG-K130
 
-PRODUCT_BRAND := Coolpad
-TARGET_VENDOR := coolpad
-TARGET_VENDOR_PRODUCT_NAME := CP8298_I00
-TARGET_VENDOR_DEVICE_NAME := CP8298_I00
+PRODUCT_BRAND := lge
+TARGET_VENDOR := lge
+TARGET_VENDOR_PRODUCT_NAME := me1ds_global_com
+TARGET_VENDOR_DEVICE_NAME := me1ds

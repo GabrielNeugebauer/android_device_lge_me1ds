@@ -1,0 +1,120 @@
+name: LineageOS 15.1 (me1ds)
+
+# Disk, Java 8 and ncurses5 setup follow Windy-Xiaofei/gn3002-phoenix's
+# LineageOS 15.1 workflow for MT6735 on hosted runners.
+on:
+  push:
+    branches: [lineage-15.1]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "make targets (systemimage bootimage, or just bootimage)"
+        required: false
+        default: "systemimage bootimage"
+
+concurrency:
+  group: lineage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: dt
+
+      - name: Free disk space
+        run: |
+          df -h / /mnt
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" \
+                      /opt/hostedtoolcache /usr/local/.ghcup /usr/share/swift \
+                      /usr/local/share/powershell /usr/local/share/chromium \
+                      /usr/lib/jvm/*11* /usr/lib/jvm/*17* /usr/lib/jvm/*21* 2>/dev/null || true
+          sudo docker image prune -af >/dev/null 2>&1 || true
+          sudo apt-get clean
+          sudo mkdir -p /mnt/out && sudo chown "$USER" /mnt/out
+          df -h / /mnt
+
+      - name: Install Java 8 and build dependencies
+        run: |
+          sudo mkdir -p /etc/apt/keyrings
+          curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public \
+            | sudo gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(lsb_release -cs) main" \
+            | sudo tee /etc/apt/sources.list.d/adoptium.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends temurin-8-jdk \
+            bc bison build-essential ccache curl flex g++-multilib gcc-multilib \
+            git git-lfs gnupg gperf imagemagick libelf-dev liblz4-tool libncurses-dev \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool \
+            squashfs-tools xsltproc zip zlib1g-dev python2.7 python-is-python2 \
+            lib32z1-dev clang llvm binutils-arm-none-eabi
+          JH=$(ls -d /usr/lib/jvm/temurin-8-jdk-* | head -1)
+          echo "JAVA_HOME=$JH" >> "$GITHUB_ENV"
+          echo "$JH/bin" >> "$GITHUB_PATH"
+          # AOSP 8.1 prebuilt clang links against libncurses.so.5 / libtinfo.so.5
+          B=http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses
+          cd /tmp
+          curl -sSLO "$B/libtinfo5_6.2-0ubuntu2.1_amd64.deb"
+          curl -sSLO "$B/libncurses5_6.2-0ubuntu2.1_amd64.deb"
+          curl -sSLO "http://archive.ubuntu.com/ubuntu/pool/main/m/mpfr4/libmpfr4_3.1.4-1_amd64.deb"
+          sudo dpkg -i libtinfo5_*.deb libncurses5_*.deb libmpfr4_*.deb
+          git lfs install --skip-repo
+
+      - name: Sync LineageOS 15.1
+        run: |
+          mkdir -p ~/bin && curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod +x ~/bin/repo && export PATH=~/bin:$PATH
+          git config --global user.name ci && git config --global user.email ci@localhost
+          git config --global color.ui false
+          mkdir -p rom/.repo/local_manifests && cd rom
+          repo init -q -u https://github.com/LineageOS/android.git -b lineage-15.1 --depth=1
+          cat > .repo/local_manifests/me1ds.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <manifest>
+            <remote name="gh" fetch="https://github.com/" />
+            <project name="GabrielNeugebauer/android_device_coolpad_mt6735-common" path="device/coolpad/mt6735-common" remote="gh" revision="me1ds-lineage-15.1" clone-depth="1" />
+            <project name="GabrielNeugebauer/android_kernel_coolpad_CP8298_I00" path="kernel/lge/me1ds" remote="gh" revision="feat/me1ds-board-23-11-2026" clone-depth="1" />
+            <project name="GabrielNeugebauer/proprietary_vendor_coolpad" path="vendor/coolpad" remote="gh" revision="me1ds-lineage-15.1" clone-depth="1" />
+          </manifest>
+          EOF
+          repo sync -q -c -j$(( $(nproc) * 2 )) --force-sync --no-clone-bundle --no-tags --optimized-fetch
+          rsync -a --exclude .git ../dt/ device/lge/me1ds/
+          (cd external/chromium-webview && git lfs pull) || true
+          df -h / /mnt
+
+      - name: Build
+        run: |
+          cd rom
+          export OUT_DIR=/mnt/out LC_ALL=C USE_CCACHE=0
+          source build/envsetup.sh
+          lunch lineage_me1ds-userdebug
+          make -j$(nproc) ${{ github.event.inputs.target || 'systemimage bootimage' }} 2>&1 | tail -n 400 > /mnt/out/build-tail.log; s=${PIPESTATUS[0]}
+          df -h / /mnt
+          exit $s
+
+      - name: Pack boot.img with kboot64
+        run: |
+          P=/mnt/out/target/product/me1ds
+          K=$P/obj/KERNEL_OBJ/arch/arm64/boot
+          mkdir -p dist
+          LD=arm-none-eabi-ld LDEMU= dt/tools/kboot64/build.sh $K/Image $K/dts/me1ds.dtb dist/kboot64-dtb
+          python3 dt/tools/mkbootimg_mtk.py --kernel dist/kboot64-dtb --ramdisk $P/ramdisk.img \
+            --cmdline "bootopt=64S3,32N2,32N2 androidboot.hardware=mt6735" \
+            --kernel-offset 0x00008000 -o dist/boot-me1ds.img
+          cp $K/Image $K/dts/me1ds.dtb $P/ramdisk.img dist/
+          [ -f $P/system.img ] && cp $P/system.img dist/ || true
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lineage-15.1-me1ds
+          if-no-files-found: warn
+          path: |
+            dist/
+            /mnt/out/build-tail.log

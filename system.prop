@@ -14,7 +14,7 @@ dalvik.vm.heapgrowthlimit=256m
 dalvik.vm.heapsize=512m
 
 # Graphics
-ro.sf.lcd_density=320
+ro.sf.lcd_density=240
 
 # memory trim
 ro.sys.fw.use_trim_settings=true

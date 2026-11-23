@@ -8,9 +8,6 @@ on post-fs-data
 
 on boot
     # Fingerprint
-    chown system system /sys/bus/platform/devices/fpc_interrupt/irq
-    chown system system /sys/bus/platform/devices/fpc_interrupt/clk_enable
-    chown system system /sys/bus/platform/devices/fpc_interrupt/wakeup_enable
 
     # Tap to wake
     chown system system /sys/devices/virtual/touchscreen/touchscreen_dev/gesture_ctrl
@@ -26,5 +23,5 @@ on boot
     write /sys/block/mmcblk0/bdi/read_ahead_kb 128
 
 on post-fs
-    swapon_all /fstab.CP8298_I00
+    swapon_all /fstab.me1ds
     write /proc/sys/vm/page-cluster 0

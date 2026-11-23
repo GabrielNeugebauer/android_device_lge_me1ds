@@ -16,5 +16,5 @@
 -->
 <resources>
     <!-- Hardware keys: 1 (home) + 2 (back) + 16 (app switch) + 64 (volume rocker) -->
-    <integer name="config_deviceHardwareKeys">83</integer>
+    <integer name="config_deviceHardwareKeys">0</integer>
 </resources>
