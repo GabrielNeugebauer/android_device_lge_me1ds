@@ -32,6 +32,13 @@ jobs:
         with:
           path: twrp/device/lge/me1ds
 
+      - name: Patch TWRP for the Android 5.1 toolchain
+        working-directory: twrp
+        run: |
+          # android-9.0 TWRP uses nullptr in one spot; 5.1 builds recovery as pre-C++11
+          sed -i 's/(sml != nullptr)/(sml != NULL)/' bootable/recovery/partition.cpp
+          grep -n "sml != NULL" bootable/recovery/partition.cpp
+
       - name: Build recoveryimage (Ubuntu 14.04 + OpenJDK 7)
         run: |
           ARM64="${{ github.event.inputs.arm64 || 'false' }}"
