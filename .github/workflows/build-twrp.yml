@@ -58,11 +58,11 @@ jobs:
         run: |
           sudo apt-get install -y -qq lz4 >/dev/null
           OUT=twrp/out/target/product/me1ds
-          python3 twrp/device/lge/me1ds/tools/repack_lz4.py $OUT/recovery.img $OUT/twrp-me1ds.img 16777216
+          mkdir -p dist
+          cp $OUT/recovery.img dist/recovery-gzip.img
+          python3 twrp/device/lge/me1ds/tools/repack_lz4.py dist/recovery-gzip.img dist/twrp-me1ds.img 16777216
 
       - uses: actions/upload-artifact@v4
         with:
           name: twrp-me1ds
-          path: |
-            twrp/out/target/product/me1ds/twrp-me1ds.img
-            twrp/out/target/product/me1ds/recovery.img
+          path: dist/
