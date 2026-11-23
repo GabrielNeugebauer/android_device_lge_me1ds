@@ -1,0 +1,61 @@
+name: Build TWRP (me1ds)
+
+on:
+  push:
+    branches: ["twrp-5.1"]
+  workflow_dispatch:
+    inputs:
+      arm64:
+        description: "Build 64-bit (needs prebuilt/Image.gz-dtb)"
+        default: "false"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          docker image prune -af >/dev/null
+          df -h /
+
+      - name: Sync twrp-5.1 minimal manifest
+        run: |
+          mkdir -p ~/bin twrp
+          curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo && chmod +x ~/bin/repo
+          git config --global user.name ci && git config --global user.email ci@localhost
+          cd twrp
+          ~/bin/repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git -b twrp-5.1
+          ~/bin/repo sync -c -j"$(nproc)" --no-tags --no-clone-bundle --force-sync
+
+      - uses: actions/checkout@v4
+        with:
+          path: twrp/device/lge/me1ds
+
+      - name: Build recoveryimage (Ubuntu 14.04 + OpenJDK 7)
+        run: |
+          ARM64="${{ github.event.inputs.arm64 || 'false' }}"
+          docker run --rm -v "$GITHUB_WORKSPACE/twrp:/twrp" -w /twrp -e ME1DS_ARM64="$ARM64" ubuntu:14.04 bash -ec '
+            apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openjdk-7-jdk git-core gnupg flex bison gperf \
+              build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev \
+              x11proto-core-dev libx11-dev lib32z-dev libgl1-mesa-dev libxml2-utils xsltproc unzip python bc >/dev/null
+            export LC_ALL=C USER=ci
+            source build/envsetup.sh
+            lunch omni_me1ds-eng
+            make -j"$(nproc)" recoveryimage 2>&1 | tail -n 300
+            exit ${PIPESTATUS[0]}
+          '
+
+      - name: Repack ramdisk as LZ4 for the stock kernel
+        run: |
+          sudo apt-get install -y -qq lz4 >/dev/null
+          OUT=twrp/out/target/product/me1ds
+          python3 twrp/device/lge/me1ds/tools/repack_lz4.py $OUT/recovery.img $OUT/twrp-me1ds.img 16777216
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: twrp-me1ds
+          path: |
+            twrp/out/target/product/me1ds/twrp-me1ds.img
+            twrp/out/target/product/me1ds/recovery.img

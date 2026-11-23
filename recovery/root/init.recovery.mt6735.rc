@@ -1,0 +1,10 @@
+on init
+    # MTK: cmode 1 lets the USB port enumerate in recovery (stock sets 2)
+    write /sys/devices/platform/mt_usb/cmode 1
+    export LD_LIBRARY_PATH /system/lib64:/system/lib:/vendor/lib64:/vendor/lib:/sbin
+
+on fs
+    mkdir /persist-lg 0771 system system
+    mkdir /nvdata 0771 system system
+    mkdir /protect_f 0771 system system
+    mkdir /protect_s 0771 system system
