@@ -35,10 +35,12 @@ def main(src, dst, limit):
     out = bytes(hdr)
     for blob in (kernel, lz4, second):
         out += blob + b"\0" * (pad(len(blob), ps) - len(blob))
-    open(dst, "wb").write(out)
     print(f"kernel={ks} ramdisk(cpio)={len(ramdisk)} ramdisk(lz4)={len(lz4)} image={len(out)} limit={limit}")
     if len(out) > limit:
         sys.exit(f"image too large: {len(out)} > {limit}")
+    # LG lk reads a signature right after the image; zeros mean "unsigned"
+    # (allowed when unlocked), stale partition bytes fail with error 1003.
+    open(dst, "wb").write(out + b"\0" * (limit - len(out)))
 
 
 if __name__ == "__main__":
