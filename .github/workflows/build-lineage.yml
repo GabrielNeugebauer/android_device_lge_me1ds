@@ -89,7 +89,10 @@ jobs:
           repo sync -q -c -j$(( $(nproc) * 2 )) --force-sync --no-clone-bundle --no-tags --optimized-fetch
           mkdir -p device/lge/me1ds
           rsync -a --exclude .git ../dt/ device/lge/me1ds/
-          (cd external/chromium-webview && git lfs pull) || true
+          for p in arm arm64; do
+            (cd external/chromium-webview/prebuilt/$p && git lfs pull)
+            unzip -tq external/chromium-webview/prebuilt/$p/webview.apk
+          done
           df -h / /mnt
 
       - name: Build
