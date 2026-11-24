@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: "make targets (systemimage kernel ramdisk, or just bootimage)"
+        description: "make targets (otapackage, or systemimage kernel ramdisk)"
         required: false
-        default: "systemimage kernel ramdisk"
+        default: "otapackage"
 
 concurrency:
   group: lineage-${{ github.ref }}
@@ -102,7 +102,7 @@ jobs:
           export ANDROID_JACK_VM_ARGS="-Dfile.encoding=UTF-8 -XX:+TieredCompilation -Xmx6g"
           source build/envsetup.sh
           lunch lineage_me1ds-userdebug
-          make -j$(nproc) ${{ github.event.inputs.target || 'systemimage kernel ramdisk' }} 2>&1 | tail -n 400 > /mnt/out/build-tail.log; s=${PIPESTATUS[0]}
+          make -j$(nproc) ${{ github.event.inputs.target || 'otapackage' }} 2>&1 | tail -n 400 > /mnt/out/build-tail.log; s=${PIPESTATUS[0]}
           df -h / /mnt
           exit $s
 
@@ -115,8 +115,25 @@ jobs:
           python3 dt/tools/mkbootimg_mtk.py --kernel dist/kboot64-dtb --ramdisk $P/ramdisk.img \
             --cmdline "bootopt=64S3,32N2,32N2 androidboot.hardware=mt6735" \
             --kernel-offset 0x00008000 -o dist/boot-me1ds.img
-          cp $K/Image $K/dts/me1ds.dtb $P/ramdisk.img dist/
-          [ -f $P/system.img ] && cp $P/system.img dist/ || true
+          Z=$(ls $P/lineage-15.1-*-me1ds.zip 2>/dev/null | head -1)
+          if [ -n "$Z" ]; then
+            # Flashable zip: kboot64 boot image instead of the AOSP one, and
+            # the by-name path the installer uses (TWRP only creates
+            # mtk-msdc.0/by-name).
+            W=$(mktemp -d) && cp "$Z" dist/ && Z=dist/$(basename "$Z")
+            cp dist/boot-me1ds.img $W/boot.img
+            mkdir -p $W/META-INF/com/google/android
+            unzip -p "$Z" META-INF/com/google/android/updater-script > $W/us
+            B=/dev/block/platform/mtk-msdc.0
+            { echo "run_program(\"/sbin/sh\", \"-c\", \"[ -e $B/11230000.msdc0/by-name ] || { mkdir -p $B/11230000.msdc0 && ln -s $B/by-name $B/11230000.msdc0/by-name; }\");"
+              cat $W/us; } > $W/META-INF/com/google/android/updater-script
+            (cd $W && zip -q -0 "$GITHUB_WORKSPACE/$Z" boot.img && zip -q "$GITHUB_WORKSPACE/$Z" META-INF/com/google/android/updater-script)
+            head -3 $W/META-INF/com/google/android/updater-script
+            (cd dist && md5sum "$(basename "$Z")" > "$(basename "$Z").md5sum")
+          else
+            cp $K/Image $K/dts/me1ds.dtb $P/ramdisk.img dist/
+            [ -f $P/system.img ] && cp $P/system.img dist/ || true
+          fi
           ls -la dist
 
       - uses: actions/upload-artifact@v4
