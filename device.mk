@@ -29,7 +29,6 @@ DEVICE_PACKAGE_OVERLAYS += $(LOCAL_PATH)/overlay
 # Init
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/rootdir/init.target.rc:root/init.target.rc \
-    $(LOCAL_PATH)/rootdir/init.trustonic.rc:root/init.trustonic.rc \
     $(LOCAL_PATH)/rootdir/init.volte.rc:root/init.volte.rc \
     $(LOCAL_PATH)/rootdir/fstab.me1ds:root/fstab.me1ds
 
@@ -49,10 +48,6 @@ PRODUCT_PACKAGES += \
 # Keylayouts
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/keylayouts/mtk-tpd.kl:system/usr/keylayout/mtk-tpd.kl
-
-# Keymaster
-PRODUCT_PACKAGES += \
-    keystore.mt6735
 
 # Media
 PRODUCT_COPY_FILES += \
