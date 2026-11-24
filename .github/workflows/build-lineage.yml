@@ -55,6 +55,9 @@ jobs:
             lib32z1-dev clang llvm binutils-arm-none-eabi
           sudo ln -sf /usr/bin/python2 /usr/bin/python
           JH=$(ls -d /usr/lib/jvm/temurin-8-jdk-* | head -1)
+          # Jack server talks TLSv1/1.1, disabled in current Java 8 builds
+          sudo sed -i 's/TLSv1, TLSv1.1, //' "$JH"/jre/lib/security/java.security
+          grep -n "^jdk.tls.disabledAlgorithms" -A1 "$JH"/jre/lib/security/java.security
           echo "JAVA_HOME=$JH" >> "$GITHUB_ENV"
           echo "$JH/bin" >> "$GITHUB_PATH"
           # AOSP 8.1 prebuilt clang links against libncurses.so.5 / libtinfo.so.5
@@ -93,6 +96,7 @@ jobs:
         run: |
           cd rom
           export OUT_DIR=/mnt/out LC_ALL=C USE_CCACHE=0
+          export ANDROID_JACK_VM_ARGS="-Dfile.encoding=UTF-8 -XX:+TieredCompilation -Xmx6g"
           source build/envsetup.sh
           lunch lineage_me1ds-userdebug
           make -j$(nproc) ${{ github.event.inputs.target || 'systemimage bootimage' }} 2>&1 | tail -n 400 > /mnt/out/build-tail.log; s=${PIPESTATUS[0]}
