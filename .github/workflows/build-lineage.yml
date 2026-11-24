@@ -115,12 +115,13 @@ jobs:
           python3 dt/tools/mkbootimg_mtk.py --kernel dist/kboot64-dtb --ramdisk $P/ramdisk.img \
             --cmdline "bootopt=64S3,32N2,32N2 androidboot.hardware=mt6735" \
             --kernel-offset 0x00008000 -o dist/boot-me1ds.img
-          Z=$(ls $P/lineage-15.1-*-me1ds.zip 2>/dev/null | head -1)
+          Z=$(ls $P/lineage_me1ds-ota-*.zip 2>/dev/null | head -1)
           if [ -n "$Z" ]; then
+            N=lineage-15.1-$(date -u +%Y%m%d)-UNOFFICIAL-me1ds.zip
             # Flashable zip: kboot64 boot image instead of the AOSP one, and
             # the by-name path the installer uses (TWRP only creates
             # mtk-msdc.0/by-name).
-            W=$(mktemp -d) && cp "$Z" dist/ && Z=dist/$(basename "$Z")
+            W=$(mktemp -d) && cp "$Z" dist/$N && Z=dist/$N
             cp dist/boot-me1ds.img $W/boot.img
             mkdir -p $W/META-INF/com/google/android
             unzip -p "$Z" META-INF/com/google/android/updater-script > $W/us

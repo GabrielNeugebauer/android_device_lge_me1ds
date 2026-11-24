@@ -9,9 +9,21 @@ persist.radio.mtk_dsbp_support=1
 ro.mtk_ims_support=1
 ro.mtk_volte_support=1
 
-# Dalvik
-dalvik.vm.heapgrowthlimit=256m
-dalvik.vm.heapsize=512m
+# Dalvik: AOSP 1 GB profile (phone-xhdpi-1024-dalvik-heap)
+dalvik.vm.heapgrowthlimit=96m
+dalvik.vm.heapsize=256m
+
+# HWUI caches sized for a 480x854 panel and 1 GB RAM
+ro.hwui.texture_cache_size=24
+ro.hwui.layer_cache_size=16
+ro.hwui.r_buffer_cache_size=2
+ro.hwui.path_cache_size=4
+ro.hwui.gradient_cache_size=0.5
+ro.hwui.drop_shadow_cache_size=2
+ro.hwui.text_small_cache_width=1024
+ro.hwui.text_small_cache_height=512
+ro.hwui.text_large_cache_width=2048
+ro.hwui.text_large_cache_height=512
 
 # Graphics
 ro.sf.lcd_density=240
