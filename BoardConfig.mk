@@ -54,4 +54,4 @@ BOARD_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy
 # repacks boot.img with it (see .github/workflows).
 BOARD_KERNEL_CMDLINE := bootopt=64S3,32N2,32N2 androidboot.hardware=mt6735
 BOARD_KERNEL_OFFSET := 0x00008000
-BOARD_KERNEL_IMAGE_NAME := Image
+BOARD_KERNEL_IMAGE_NAME := Image.gz-dtb
