@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: "make targets (otapackage, or systemimage kernel ramdisk)"
+        description: "make targets (target-files-package otatools, or systemimage kernel ramdisk)"
         required: false
-        default: "otapackage"
+        default: "target-files-package otatools"
 
 concurrency:
   group: lineage-${{ github.ref }}
@@ -38,6 +38,17 @@ jobs:
           sudo apt-get clean
           sudo mkdir -p /mnt/out && sudo chown "$USER" /mnt/out
           df -h / /mnt
+
+      - name: Load signing keys
+        env:
+          SIGNING_KEYS: ${{ secrets.SIGNING_KEYS }}
+        run: |
+          [ -n "$SIGNING_KEYS" ] || { echo "SIGNING_KEYS secret missing"; exit 1; }
+          mkdir -p ~/.android-certs && chmod 700 ~/.android-certs
+          echo "$SIGNING_KEYS" | base64 -d | tar -xz -C ~/.android-certs
+          for k in releasekey platform shared media testkey; do
+            openssl x509 -in ~/.android-certs/$k.x509.pem -noout -subject
+          done
 
       - name: Install Java 8 and build dependencies
         run: |
@@ -102,9 +113,32 @@ jobs:
           export ANDROID_JACK_VM_ARGS="-Dfile.encoding=UTF-8 -XX:+TieredCompilation -Xmx6g"
           source build/envsetup.sh
           lunch lineage_me1ds-userdebug
-          make -j$(nproc) ${{ github.event.inputs.target || 'otapackage' }} 2>&1 | tail -n 400 > /mnt/out/build-tail.log; s=${PIPESTATUS[0]}
+          make -j$(nproc) ${{ github.event.inputs.target || 'target-files-package otatools' }} 2>&1 | tail -n 400 > /mnt/out/build-tail.log; s=${PIPESTATUS[0]}
           df -h / /mnt
           exit $s
+
+      - name: Sign with release keys
+        run: |
+          TF=$(ls /mnt/out/target/product/me1ds/obj/PACKAGING/target_files_intermediates/lineage_me1ds-target_files-*.zip 2>/dev/null | head -1)
+          [ -n "$TF" ] || { echo "no target files, skipping signing"; exit 0; }
+          cd rom
+          R=build/make/tools/releasetools H=/mnt/out/host/linux-x86
+          $R/sign_target_files_apks -p $H -o -d ~/.android-certs "$TF" /mnt/out/signed-target_files.zip
+          $R/ota_from_target_files -p $H -k ~/.android-certs/releasekey --block --backup=true \
+            /mnt/out/signed-target_files.zip /mnt/out/target/product/me1ds/lineage_me1ds-signed-ota.zip
+          unzip -p /mnt/out/signed-target_files.zip SYSTEM/build.prop | grep -E "^ro.build.(tags|fingerprint)="
+          # The signed ramdisk carries the re-keyed plat_mac_permissions.xml
+          unzip -p /mnt/out/signed-target_files.zip IMAGES/boot.img > /mnt/out/signed-boot.img
+          python3 - /mnt/out/signed-boot.img /mnt/out/target/product/me1ds/ramdisk-signed.img <<'PY'
+          import struct, sys
+          b = open(sys.argv[1], "rb").read()
+          assert b[:8] == b"ANDROID!"
+          ks, _, rs = struct.unpack_from("<III", b, 8)
+          ps = struct.unpack_from("<I", b, 36)[0]
+          off = ps * (1 + (ks + ps - 1) // ps)
+          open(sys.argv[2], "wb").write(b[off:off + rs])
+          PY
+          ls -la /mnt/out/target/product/me1ds/ramdisk*.img
 
       - name: Pack boot.img with kboot64
         run: |
@@ -112,10 +146,11 @@ jobs:
           K=$P/obj/KERNEL_OBJ/arch/arm64/boot
           mkdir -p dist
           LD=arm-none-eabi-ld LDEMU= dt/tools/kboot64/build.sh $K/Image $K/dts/me1ds.dtb dist/kboot64-dtb
-          python3 dt/tools/mkbootimg_mtk.py --kernel dist/kboot64-dtb --ramdisk $P/ramdisk.img \
+          RD=$P/ramdisk.img; [ -f $P/ramdisk-signed.img ] && RD=$P/ramdisk-signed.img
+          python3 dt/tools/mkbootimg_mtk.py --kernel dist/kboot64-dtb --ramdisk $RD \
             --cmdline "bootopt=64S3,32N2,32N2 androidboot.hardware=mt6735" \
             --kernel-offset 0x00008000 -o dist/boot-me1ds.img
-          Z=$(ls $P/lineage_me1ds-ota-*.zip 2>/dev/null | head -1)
+          Z=$(ls $P/lineage_me1ds-signed-ota.zip 2>/dev/null | head -1)
           if [ -n "$Z" ]; then
             N=lineage-15.1-$(date -u +%Y%m%d)-UNOFFICIAL-me1ds.zip
             # Flashable zip: kboot64 boot image instead of the AOSP one, and
