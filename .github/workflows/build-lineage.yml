@@ -160,10 +160,28 @@ jobs:
             cp dist/boot-me1ds.img $W/boot.img
             mkdir -p $W/META-INF/com/google/android
             unzip -p "$Z" META-INF/com/google/android/updater-script > $W/us
+            # sign_target_files_apks only re-tags VENDOR/build.prop; here vendor
+            # lives in /system, so fix its fingerprint or Lineage reports a
+            # vendor image mismatch.
+            unzip -p /mnt/out/signed-target_files.zip SYSTEM/vendor/build.prop \
+              | sed 's#:userdebug/test-keys$#:userdebug/release-keys#' > $W/vendor-build.prop
+            grep fingerprint $W/vendor-build.prop
+            python3 - $W/us <<'PY'
+          import sys
+          p = sys.argv[1]; s = open(p).read()
+          B = "/dev/block/platform/mtk-msdc.0/11230000.msdc0/by-name"
+          anchor = 'package_extract_file("boot.img", "%s/boot");' % B
+          assert s.count(anchor) == 1
+          add = ('mount("ext4", "EMMC", "%s/system", "/system", "");\n'
+                 'package_extract_file("vendor-build.prop", "/system/vendor/build.prop");\n'
+                 'set_metadata("/system/vendor/build.prop", "uid", 0, "gid", 0, "mode", 0600, "capabilities", 0x0, "selabel", "u:object_r:vendor_file:s0");\n'
+                 'unmount("/system");\n') % B
+          open(p, "w").write(s.replace(anchor, add + anchor))
+          PY
             B=/dev/block/platform/mtk-msdc.0
             { echo "run_program(\"/sbin/sh\", \"-c\", \"[ -e $B/11230000.msdc0/by-name ] || { mkdir -p $B/11230000.msdc0 && ln -s $B/by-name $B/11230000.msdc0/by-name; }\");"
               cat $W/us; } > $W/META-INF/com/google/android/updater-script
-            (cd $W && zip -q -0 "$GITHUB_WORKSPACE/$Z" boot.img && zip -q "$GITHUB_WORKSPACE/$Z" META-INF/com/google/android/updater-script)
+            (cd $W && zip -q -0 "$GITHUB_WORKSPACE/$Z" boot.img && zip -q "$GITHUB_WORKSPACE/$Z" vendor-build.prop META-INF/com/google/android/updater-script)
             head -3 $W/META-INF/com/google/android/updater-script
             (cd dist && md5sum "$(basename "$Z")" > "$(basename "$Z").md5sum")
           else
