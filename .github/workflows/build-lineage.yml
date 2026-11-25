@@ -124,7 +124,7 @@ jobs:
           cd rom
           R=build/make/tools/releasetools H=/mnt/out/host/linux-x86
           $R/sign_target_files_apks -p $H -o -d ~/.android-certs "$TF" /mnt/out/signed-target_files.zip
-          $R/ota_from_target_files -p $H -k ~/.android-certs/releasekey --block --backup=true \
+          $R/ota_from_target_files -p $H -k ~/.android-certs/releasekey --block --backup=false \
             /mnt/out/signed-target_files.zip /mnt/out/target/product/me1ds/lineage_me1ds-signed-ota.zip
           unzip -p /mnt/out/signed-target_files.zip SYSTEM/build.prop | grep -E "^ro.build.(tags|fingerprint)="
           # The signed ramdisk carries the re-keyed plat_mac_permissions.xml
