@@ -98,6 +98,14 @@ jobs:
           </manifest>
           EOF
           repo sync -q -c -j$(( $(nproc) * 2 )) --force-sync --no-clone-bundle --no-tags --optimized-fetch
+          # repo skips submodules; ReSukiSU wants a full git checkout (its
+          # version code is the commit count) at the commit the kernel pins.
+          K=kernel/lge/me1ds
+          KS=$(git -C $K ls-tree HEAD KernelSU | awk '{print $3}')
+          rm -rf $K/KernelSU
+          git clone -q -b me1ds-3.18 https://github.com/GabrielNeugebauer/BakaSU $K/KernelSU
+          git -C $K/KernelSU checkout -q "$KS"
+          echo "KernelSU $KS, version $(( 30700 + $(git -C $K/KernelSU rev-list --count HEAD) ))"
           mkdir -p device/lge/me1ds
           rsync -a --exclude .git ../dt/ device/lge/me1ds/
           for p in arm arm64; do
